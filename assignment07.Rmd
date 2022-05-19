@@ -1,0 +1,158 @@
+---
+title: 'Assignment 7: Correlation and Regression'
+author: "Asa Hayes"
+date: "19 April, 2021"
+output: pdf_document
+---
+  
+  
+### Instructions
+  
+Download the [assignment07.Rmd](http://people.tamu.edu/~geoallen/courses/312/assignment07.Rmd) file from Canvas and open it in RStudio. Complete this assignment by filling in the answers below in the R Markdown Notebook document. 
+  
+**Data**  
+In this assignment, you will apply correlation and regression analysis to environmental variables located at the PUF Lands CRIS Survey drilling pad measurements that were collected for Assignment #4. Similar to Assignment #6, pads that are within 500 meters of any other pads have been removed and geographic latitude/longitude coordinates have been converted to UTM Zone 14 coordinates.  
+    
+The drilling pad data are contained within a CSV file called "CRIS_AI_elev.csv", located at the following URL:  
+http://people.tamu.edu/~geoallen/courses/312/CRIS_AI_elev.csv  
+This CSV contains the following variables: (1) approach; (2) x; (3) y; (4) area_m2 (the area of the pad); (5) aridity (mean [aridity index](https://en.wikipedia.org/wiki/Aridity_index) at the pad from [CGIAR](https://cgiarcsi.community/data/global-aridity-and-pet-database/)); (6) elev_m (pad elevation in meters above sea level from the 15 Arcsecond [HydroSHEDS DEM](https://www.hydrosheds.org/)). 
+  
+  
+### Deliverables  
+Please submit to Canvas the following items:  
+1. An HTML (or Word or PDF) file knitted from the .Rmd file  
+2. A completed .Rmd file  
+  
+  
+## Questions
+  
+\
+1.	Read in the CRIS_AI_elev.csv file into RStudio directly from the URL address provided above and assign it to the variable "CRIS". In a single figure, show the relationship between pad area (dependent variable) and elevation. As usual, all graphics created in this assignment should be done using the ggplot2 R package and will be graded based on the highest standards of data visualization. 
+```{r}
+path = "http://people.tamu.edu/~geoallen/courses/312/CRIS_AI_elev.csv"
+CRIS = read.csv(path, header=T)
+library(ggplot2)
+colorGood <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999")
+#colorGood is a set of colors suited for visibility to various types of colorblindness
+
+
+ggplot() +
+  geom_point(data=CRIS, aes(elev_m, y=area_m2)) + 
+  theme_light() +
+  scale_fill_manual(values = colorGood) +
+  labs(x = "Elevation (m)",
+       y = "Pad Area (m^2)",
+       title = "CRIS Pad Area vs. Elevation")
+
+```
+  
+   The general pattern seems to indicate/suggest (without the obvious high outliers included) that the lower bound of pad size doesn't change much regardless of elevation, but the upper bound does increase roughly linearly up to ~825m, tapering off somewhat after that. 
+  
+\
+2. Are aridity and pad area positively or negatively correlated? State the null hypothesis of correlation. Is the Pearson correlation coefficient significant at the 95% confidence interval?  
+```{r}
+cor.test(x=CRIS$aridity, y=CRIS$area_m2, method="pearson")
+
+
+```
+   Aridity and pad area are correlated positively, albeit by a very small amount.
+   The null hypothesis of correlation is that the correlation coefficient of these two varaibles is not meaningfully, statistically different than 0. To condense, NULL => Correlation ~= 0.
+   As the p-value is not less than the critical value of 0.05 for the 95% confidence interval, we can reasonably assume that the coefficient is not statistically significant. Thus, we fail to reject the null hypothesis that these variables are not meaningfully correlated.
+ 
+   
+\
+3. Are elevation and aridity positively or negatively correlated? Using the Pearson correlation coefficient, state whether this correlation is significant at the 95% confidence interval. In one sentence answer the following: does aridity cause a change in elevation, why or why not? 
+```{r}
+cor.test(x=CRIS$elev_m, y=CRIS$aridity, method="pearson")
+
+```
+   Aridity and elevation are correlated negatively.
+   As the p-value is substantially less than the critical value of 0.05 for the 95% confidence interval, we can reasonably assume that the coefficient is statistically significant. Thus, we can reasonably reject the null hypothesis that these variables are not meaningfully correlated. 
+   In one sentence, we can conclude that there is near-certainly an inverse relation between aridity and elevation, but we cannot be sure which is the controlling variable, if it is just one of the two tested, both, or none (i.e. correlation by coincidence).
+   
+\
+4. Using Spearman's rank correlation coefficient, determine whether there is a statistically significant correlation between pad area and aridity. In one sentence, what about the data might explain the differences between the results of the Pearson and Spearman tests? 
+```{r}
+cor.test(x=CRIS$area_m2, y=CRIS$aridity, method="spearman")
+
+```
+    As the p-value is  less than the critical value of 0.05 for the 95% confidence interval, we can reasonably assume that the coefficient is statistically significant. Thus, we can reasonably reject the null hypothesis that these variables are not meaningfully correlated. 
+    Looking at the data, we can clearly see that pad area and aridity are nowhere near linearly correlated, as there is substantially more variation for values in similar corresponding ranges for each variable, but as the Spearman test is able to determine nonlinear correlation (in monotonic comparisons), the success of this case indicates that the correlation is significant but nonlinear.
+    
+\
+5. Perform a least-squares linear regression between elevation (independent variable) and aridity. State the values of the slope and y-intercept of this regression. Plot elevation and aridity data with ggplot2 and add the least-squares regression as a blue line to the plot. Are these data are a sample or the population of elevation and aridity in the study area? 
+```{r}
+lr = lm(aridity~elev_m, data=CRIS)
+summary(lr)
+
+ggplot() + 
+  geom_point(data=CRIS, aes(x=elev_m, y=aridity)) +
+  geom_smooth(data=CRIS, aes(x=elev_m, y=aridity), formula=y~x, method="lm", se=F) + 
+  theme_light() +
+  scale_fill_manual(values = colorGood) +
+  labs(x = "Elevation (m)",
+       y = "Average Aridity Index",
+       title = "CRIS Pad Area vs. Aridity (with Lin. Regress. Line)")
+
+
+```
+    The intercept, as labeled above, is 0.5354308, and the y-intercept is -0.0002628.
+    These data are a sample of the total population, as there are not measurements for every single pad in the CRIS Survey area. 
+    
+\
+6. Apply a multiple linear regression between aridity (dependent variable), elevation, and longitude. Plot aridity vs. elevation and scale the symbols by longitude. In a sentence, does incorporating longitude improve the ability of the model to represent the variability in aridity? How do you know?  
+
+```{r}
+mlr = lm(aridity~elev_m+x, data=CRIS)
+summary(mlr)
+
+ggplot() + 
+  geom_point(data=CRIS, aes(x=elev_m, y=aridity, size=x)) + 
+  theme_light() +
+  scale_fill_manual(values = colorGood) +
+  labs(x = "Elevation (m)",
+       y = "Mean Aridity Index",
+       size = "Longitude (m)" ,
+       title = "CRIS Pad Area vs. Aridity (scaled by Longitude)")
+
+```
+    With the new information derived from the size-scaled plot, we can see that there is a close positive relation between aridity and longitude, as the longitude visibly grows along with aridity index. As both the independent variables for this question have a close relation to aridity, using both is very likely to create a model that more closely fits reality. 
+    
+    
+\
+7. Plot the distribution of the regression residuals of Question #5's linear regression as a histogram. Calculate and print the standard error of the estimator. Are the residuals normally distributed? Hint: you could use the Shapiro-Wilk normality test. Is least squares the optimal regression approach to use in this case? 
+```{r}
+ggplot() + 
+  geom_histogram(data=lr, aes(x=lr$residuals)) + 
+  theme_light() +
+  scale_fill_manual(values = colorGood) +
+  labs(x = "Residuals",
+       y = "Count",
+       title = "Residuals: CRIS Pad Area vs. Aridity")
+
+print( sd(lr$residuals) )
+
+shapiro.test(lr$residuals)
+
+
+```
+    As the p-value for the Shapiro-Wilk Test is less than the default of 0.05, we can reject the hypothesis that this dataset is normally distributed and can safely say the opposite. The Least Squares method has provided a very good fit for this dataset, even when factoring in more than 2 variables, so it is likely one of, if not the best approach in this situation. Only improvement might be the use of polynomial regression to fit the "reverse-c curve" distribution visible in the charts.
+\
+8. (Bonus 5 pts) Apply a nonparametric linear regression to aridity and elevation. Print the coefficients of the nonparametric regression. Create a new ggplot figure, composed of the same figure generated in Question #5 but with the addition of the nonparametric regression line, colored red. Which line do you think fits the data better and what about the type of regression makes it fit the data better? 
+```{r}
+np = loess(aridity~elev_m, data=CRIS)
+summary(np)
+
+ggplot() + 
+  geom_point(data=CRIS, aes(x=elev_m, y=aridity)) +
+  geom_smooth(data=CRIS, aes(x=elev_m, y=aridity), formula=y~x, method="lm", se=F, color = "blue", name="Linear") + 
+  geom_smooth(data=CRIS, aes(x=elev_m, y=aridity), formula=y~x, method="loess", se=F, color = "red", name="NonParametric") + 
+  theme_light() +
+  scale_fill_manual(values = colorGood) +
+  labs(x = "Elevation (m)",
+       y = "Average Aridity Index",
+       name = "Regression Lines",
+       title = "CRIS Pad Area vs. Aridity (with Lin. Regress. Lines)")
+
+```
+   The loess function appears to create a better fit for the data, as although the line itself is not easily quantifiable (see the somewhat-jagged line span near Elevation=800m), it is more fitted towards the individual points vs. having to do its best to model the least squares for the point distribution as a whole. 
